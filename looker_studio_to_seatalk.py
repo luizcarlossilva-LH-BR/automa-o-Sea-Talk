@@ -657,6 +657,17 @@ def main():
     EMAIL = os.getenv("GOOGLE_EMAIL")
     PASSWORD = os.getenv("GOOGLE_PASSWORD")
     
+    # Debug: verifica se as variáveis foram lidas (sem mostrar valores completos)
+    if EMAIL:
+        print(f"📧 Email configurado: {EMAIL[:3]}***@{EMAIL.split('@')[1] if '@' in EMAIL else '***'}")
+    else:
+        print("⚠️ GOOGLE_EMAIL não encontrado nas variáveis de ambiente")
+    
+    if PASSWORD:
+        print(f"🔑 Senha configurada: {'*' * len(PASSWORD)}")
+    else:
+        print("⚠️ GOOGLE_PASSWORD não encontrado nas variáveis de ambiente")
+    
     # Tempo de espera para o relatório carregar (segundos)
     WAIT_TIME = int(os.getenv("WAIT_TIME", "60"))
     

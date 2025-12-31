@@ -54,6 +54,8 @@ jobs:
           WEBHOOK_URL: ${{ secrets.WEBHOOK_URL }}
           WAIT_TIME: ${{ inputs.wait_time || '60' }}
           HEADLESS: 'true'
+          GOOGLE_EMAIL: ${{ secrets.GOOGLE_EMAIL }}
+          GOOGLE_PASSWORD: ${{ secrets.GOOGLE_PASSWORD }}
         run: python looker_studio_to_seatalk.py
       
       - name: Upload screenshot (se houver erro)
