@@ -10,6 +10,7 @@ import tempfile
 import asyncio
 from typing import Optional
 from playwright.async_api import async_playwright
+from playwright.async_api import async_playwright
 
 
 async def capture_looker_studio_screenshot(
@@ -87,20 +88,27 @@ async def capture_looker_studio_screenshot(
             # Se não está usando perfil persistente e tem email/senha, tenta login automático
             if not user_data_dir and email and password:
                 print("🔐 Verificando se precisa fazer login...")
+                print(f"📍 URL atual: {page.url}")
                 
-                # Aguarda um pouco para ver se redireciona para login
-                await asyncio.sleep(3)
+                # Aguarda mais tempo para ver se redireciona para login
+                await asyncio.sleep(5)
                 current_url = page.url
-                is_login_page = 'accounts.google.com' in current_url or 'signin' in current_url.lower()
+                print(f"📍 URL após espera: {current_url}")
+                
+                is_login_page = 'accounts.google.com' in current_url or 'signin' in current_url.lower() or 'login' in current_url.lower()
                 
                 # Se não está na página de login, aguarda mais um pouco (pode redirecionar)
                 if not is_login_page:
                     print("⏳ Aguardando redirecionamento para login...")
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(10)  # Aumentado para 10 segundos
                     current_url = page.url
-                    is_login_page = 'accounts.google.com' in current_url or 'signin' in current_url.lower()
+                    print(f"📍 URL após segunda espera: {current_url}")
+                    is_login_page = 'accounts.google.com' in current_url or 'signin' in current_url.lower() or 'login' in current_url.lower()
                 
-                if is_login_page:
+                # Verifica se já está no relatório (não precisa login)
+                if 'lookerstudio.google.com' in current_url and 'accounts.google.com' not in current_url:
+                    print("✅ Já está no relatório, não precisa fazer login!")
+                elif is_login_page:
                     print("🔐 Detectada página de login, fazendo login...")
                 else:
                     # Tenta fazer login mesmo assim (pode estar em uma página intermediária)
@@ -108,18 +116,29 @@ async def capture_looker_studio_screenshot(
                 
                 try:
                     # Aguarda campo de email aparecer (pode ter diferentes seletores)
-                    email_selectors = ['#identifierId', 'input[type="email"]', 'input[name="identifier"]']
+                    email_selectors = [
+                        '#identifierId', 
+                        'input[type="email"]', 
+                        'input[name="identifier"]',
+                        'input[aria-label*="email" i]',
+                        'input[aria-label*="Email" i]',
+                        'input[id*="identifier"]'
+                    ]
                     email_field = None
                     email_selector_used = None
                     
-                    # Aguarda até 15 segundos pelo campo de email
+                    print("🔍 Procurando campo de email...")
+                    # Aguarda até 20 segundos pelo campo de email
                     for selector in email_selectors:
                         try:
-                            email_field = await page.wait_for_selector(selector, timeout=15000)
+                            print(f"   Tentando seletor: {selector}")
+                            email_field = await page.wait_for_selector(selector, timeout=20000, state='visible')
                             if email_field:
                                 email_selector_used = selector
+                                print(f"✅ Campo de email encontrado: {selector}")
                                 break
-                        except:
+                        except Exception as e:
+                            print(f"   Seletor {selector} não encontrado: {str(e)[:50]}")
                             continue
                     
                     if not email_field:
@@ -135,35 +154,65 @@ async def capture_looker_studio_screenshot(
                         print("📧 Email preenchido")
                         
                         # Clica em próximo
-                        next_selectors = ['#identifierNext', 'button:has-text("Next")', 'button[type="button"]']
+                        print("🔍 Procurando botão 'Próximo'...")
+                        next_selectors = [
+                            '#identifierNext', 
+                            'button:has-text("Next")', 
+                            'button:has-text("Próximo")',
+                            'button[type="button"]:has-text("Next")',
+                            'button[aria-label*="Next" i]',
+                            'button[id*="Next"]'
+                        ]
                         clicked = False
                         for next_sel in next_selectors:
                             try:
-                                next_btn = await page.query_selector(next_sel)
+                                print(f"   Tentando seletor: {next_sel}")
+                                next_btn = await page.wait_for_selector(next_sel, timeout=5000, state='visible')
                                 if next_btn:
                                     await next_btn.click()
                                     clicked = True
+                                    print(f"✅ Botão 'Próximo' clicado: {next_sel}")
                                     break
-                            except:
+                            except Exception as e:
+                                print(f"   Seletor {next_sel} não encontrado: {str(e)[:50]}")
                                 continue
                         
                         if not clicked:
-                            print("⚠️ Botão 'Próximo' não encontrado")
-                        else:
-                            await asyncio.sleep(3)  # Aguarda página de senha carregar
+                            print("⚠️ Botão 'Próximo' não encontrado. Tentando método alternativo...")
+                            # Tenta pressionar Enter
+                            try:
+                                await page.keyboard.press('Enter')
+                                print("   Pressionou Enter como alternativa")
+                                clicked = True
+                            except:
+                                pass
+                        
+                        if clicked:
+                            print("⏳ Aguardando página de senha carregar...")
+                            await asyncio.sleep(5)  # Aumentado para 5 segundos
                             
                             # Preenche senha
-                            password_selectors = ['input[name="password"]', 'input[type="password"]']
+                            print("🔍 Procurando campo de senha...")
+                            password_selectors = [
+                                'input[name="password"]', 
+                                'input[type="password"]',
+                                'input[aria-label*="password" i]',
+                                'input[aria-label*="Password" i]',
+                                'input[id*="password"]'
+                            ]
                             password_field = None
                             password_selector_used = None
                             
                             for selector in password_selectors:
                                 try:
-                                    password_field = await page.wait_for_selector(selector, timeout=10000)
+                                    print(f"   Tentando seletor: {selector}")
+                                    password_field = await page.wait_for_selector(selector, timeout=15000, state='visible')
                                     if password_field:
                                         password_selector_used = selector
+                                        print(f"✅ Campo de senha encontrado: {selector}")
                                         break
-                                except:
+                                except Exception as e:
+                                    print(f"   Seletor {selector} não encontrado: {str(e)[:50]}")
                                     continue
                             
                             if not password_field:
@@ -173,33 +222,74 @@ async def capture_looker_studio_screenshot(
                                 print("🔑 Senha preenchida")
                                 
                                 # Clica em próximo
-                                password_next_selectors = ['#passwordNext', 'button:has-text("Next")', 'button[type="button"]']
+                                print("🔍 Procurando botão 'Próximo' da senha...")
+                                password_next_selectors = [
+                                    '#passwordNext', 
+                                    'button:has-text("Next")', 
+                                    'button:has-text("Próximo")',
+                                    'button[type="button"]:has-text("Next")',
+                                    'button[aria-label*="Next" i]',
+                                    'button[id*="Next"]'
+                                ]
                                 clicked = False
                                 for next_sel in password_next_selectors:
                                     try:
-                                        next_btn = await page.query_selector(next_sel)
+                                        print(f"   Tentando seletor: {next_sel}")
+                                        next_btn = await page.wait_for_selector(next_sel, timeout=5000, state='visible')
                                         if next_btn:
                                             await next_btn.click()
                                             clicked = True
+                                            print(f"✅ Botão 'Próximo' da senha clicado: {next_sel}")
                                             break
-                                    except:
+                                    except Exception as e:
+                                        print(f"   Seletor {next_sel} não encontrado: {str(e)[:50]}")
                                         continue
+                                
+                                if not clicked:
+                                    print("⚠️ Botão 'Próximo' da senha não encontrado. Tentando Enter...")
+                                    try:
+                                        await page.keyboard.press('Enter')
+                                        clicked = True
+                                    except:
+                                        pass
                                 
                                 if clicked:
                                     print("⏳ Aguardando login completar...")
-                                    # Aguarda redirecionamento para o relatório (aguarda até 30 segundos)
-                                    max_wait = 30
+                                    # Aguarda redirecionamento para o relatório (aguarda até 60 segundos)
+                                    max_wait = 60
                                     waited = 0
                                     while waited < max_wait:
-                                        await asyncio.sleep(2)
+                                        await asyncio.sleep(3)
                                         current_url = page.url
+                                        print(f"   Aguardando... ({waited}s) URL: {current_url[:80]}")
+                                        
+                                        # Verifica se está no relatório
                                         if 'lookerstudio.google.com' in current_url and 'accounts.google.com' not in current_url:
                                             print("✅ Redirecionado para o relatório!")
                                             break
-                                        waited += 2
+                                        
+                                        # Verifica se ainda está na página de login (pode ter dado erro)
+                                        if 'accounts.google.com' in current_url and waited > 20:
+                                            print("⚠️ Ainda na página de login após 20s. Verificando se há erro...")
+                                            # Tenta verificar se há mensagem de erro
+                                            try:
+                                                error_elements = await page.query_selector_all('[role="alert"], .error, [class*="error"]')
+                                                if error_elements:
+                                                    print("❌ Possível erro no login detectado")
+                                            except:
+                                                pass
+                                        
+                                        waited += 3
                                     
                                     await asyncio.sleep(5)  # Aguarda carregar após login
-                                    print("✅ Login realizado com sucesso!")
+                                    
+                                    # Verifica se realmente conseguiu acessar o relatório
+                                    final_url = page.url
+                                    if 'lookerstudio.google.com' in final_url and 'accounts.google.com' not in final_url:
+                                        print("✅ Login realizado com sucesso!")
+                                    else:
+                                        print(f"⚠️ URL final: {final_url}")
+                                        print("⚠️ Pode não ter conseguido fazer login completamente")
                                 else:
                                     print("⚠️ Botão de senha 'Próximo' não encontrado")
                 
