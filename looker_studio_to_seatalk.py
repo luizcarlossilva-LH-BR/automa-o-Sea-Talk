@@ -75,18 +75,34 @@ async def capture_looker_studio_screenshot(
             page = await context.new_page()
         
         try:
-            # Se está usando perfil persistente, não precisa fazer login automático
-            if user_data_dir:
-                print("✅ Usando perfil persistente - login já deve estar feito")
-                print("   Se não estiver logado, faça login manualmente nesta primeira execução")
-            
             # Acessa o relatório
             print(f"📊 Acessando relatório: {report_url}")
             await page.goto(report_url, wait_until='domcontentloaded', timeout=60000)
-            await asyncio.sleep(3)  # Aguarda página inicial carregar
+            await asyncio.sleep(5)  # Aguarda página inicial carregar
             
-            # Se não está usando perfil persistente e tem email/senha, tenta login automático
-            if not user_data_dir and email and password:
+            # Verifica se precisa fazer login
+            current_url = page.url
+            print(f"📍 URL após acessar relatório: {current_url}")
+            
+            is_login_page = 'accounts.google.com' in current_url or 'signin' in current_url.lower()
+            is_already_logged = 'lookerstudio.google.com' in current_url and 'accounts.google.com' not in current_url
+            
+            # Se já está logado, não precisa fazer nada
+            if is_already_logged:
+                print("✅ Já está logado! Continuando...")
+            # Se está na página de login e tem email/senha, faz login automático
+            elif is_login_page and email and password:
+                print("🔐 Detectada página de login. Fazendo login automático...")
+                if user_data_dir:
+                    print("   (Usando perfil persistente, mas fazendo login na primeira vez)")
+            # Se está na página de login mas não tem email/senha
+            elif is_login_page and not email:
+                print("⚠️ Página de login detectada, mas email/senha não fornecidos!")
+                print("   Configure GOOGLE_EMAIL e GOOGLE_PASSWORD nos Secrets do GitHub")
+                raise Exception("Login necessário mas credenciais não fornecidas")
+            
+            # Se precisa fazer login e tem credenciais, faz login automático
+            if is_login_page and email and password:
                 print("🔐 Verificando se precisa fazer login...")
                 print(f"📍 URL atual: {page.url}")
                 
@@ -367,9 +383,8 @@ async def capture_looker_studio_screenshot(
                         print("✅ Parece que conseguiu acessar o relatório mesmo assim")
                     else:
                         print("❌ Não foi possível fazer login. Verifique email e senha.")
+                        print(f"   URL atual: {final_url}")
                         raise Exception(f"Erro no login: {e}")
-            else:
-                print("ℹ️ Email e senha não fornecidos, pulando login")
             
             # VERIFICA SE ESTÁ NO RELATÓRIO ANTES DE CAPTURAR
             print("🔍 Verificando se está no relatório do Looker Studio...")
