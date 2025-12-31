@@ -305,9 +305,56 @@ async def capture_looker_studio_screenshot(
             else:
                 print("ℹ️ Email e senha não fornecidos, pulando login")
             
+            # VERIFICA SE ESTÁ NO RELATÓRIO ANTES DE CAPTURAR
+            print("🔍 Verificando se está no relatório do Looker Studio...")
+            final_check_url = page.url
+            print(f"📍 URL final: {final_check_url}")
+            
+            # Se ainda está na página de login, aguarda mais
+            if 'accounts.google.com' in final_check_url or 'signin' in final_check_url.lower():
+                print("⚠️ Ainda na página de login! Aguardando mais tempo...")
+                max_retry = 30  # 30 tentativas de 2 segundos = 60 segundos
+                retry_count = 0
+                while retry_count < max_retry:
+                    await asyncio.sleep(2)
+                    current_url = page.url
+                    if 'lookerstudio.google.com' in current_url and 'accounts.google.com' not in current_url:
+                        print("✅ Finalmente redirecionado para o relatório!")
+                        break
+                    retry_count += 1
+                    if retry_count % 5 == 0:
+                        print(f"   Ainda aguardando... ({retry_count * 2}s)")
+                
+                # Verifica novamente
+                final_url_after_wait = page.url
+                if 'accounts.google.com' in final_url_after_wait:
+                    print("❌ ERRO: Ainda na página de login após aguardar!")
+                    print("   Possíveis causas:")
+                    print("   - Email ou senha incorretos")
+                    print("   - Google pedindo verificação adicional (2FA, captcha)")
+                    print("   - Bloqueio de automação pelo Google")
+                    raise Exception("Não foi possível sair da página de login do Google")
+            
+            # Verifica se realmente está no Looker Studio
+            if 'lookerstudio.google.com' not in page.url:
+                print(f"⚠️ URL atual não é do Looker Studio: {page.url}")
+                print("   Aguardando redirecionamento...")
+                await asyncio.sleep(10)
+            
             # Aguarda o tempo configurado para o relatório carregar
             print(f"⏳ Aguardando {wait_time} segundos para o relatório carregar completamente...")
             await asyncio.sleep(wait_time)
+            
+            # Verificação final antes de capturar
+            final_url_before_screenshot = page.url
+            print(f"📍 URL antes de capturar screenshot: {final_url_before_screenshot}")
+            
+            if 'accounts.google.com' in final_url_before_screenshot:
+                print("❌ ERRO CRÍTICO: Ainda na página de login! Não será possível capturar o relatório.")
+                raise Exception("Não foi possível acessar o relatório - ainda na página de login do Google")
+            
+            if 'lookerstudio.google.com' not in final_url_before_screenshot:
+                print("⚠️ AVISO: URL não parece ser do Looker Studio")
             
             # Captura screenshot
             print("📸 Capturando screenshot...")
