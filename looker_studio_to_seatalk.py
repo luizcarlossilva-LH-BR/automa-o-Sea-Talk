@@ -50,12 +50,22 @@ async def capture_looker_studio_screenshot(
             os.makedirs(user_data_dir, exist_ok=True)
             
             # Usa launch_persistent_context para manter sessão e cookies
+            # Adiciona argumentos para reduzir detecção de automação
             context = await p.chromium.launch_persistent_context(
                 user_data_dir=user_data_dir,
                 headless=headless,
                 viewport={'width': 1920, 'height': 1080},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                args=['--disable-blink-features=AutomationControlled']
+                args=[
+                    '--disable-blink-features=AutomationControlled',
+                    '--disable-dev-shm-usage',
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-web-security',
+                    '--disable-features=IsolateOrigins,site-per-process',
+                    '--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                ],
+                ignore_https_errors=True,
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             )
             
             # Pega a primeira página ou cria uma nova
@@ -196,18 +206,19 @@ async def capture_looker_studio_screenshot(
                             print(f"   Screenshot de debug capturado (tamanho: {len(debug_screenshot)} bytes)")
                             raise Exception("Campo de email não encontrado na página de login")
                     else:
-                        # Preenche o email de forma mais robusta
+                        # Preenche o email de forma mais robusta e "humana"
                         print(f"📧 Preenchendo email: {email[:3]}***")
                         
-                        # Limpa o campo primeiro (caso tenha algo)
+                        # Simula digitação humana (mais lenta)
                         await email_field.click()
-                        await asyncio.sleep(0.5)
-                        await email_field.fill('')  # Limpa
-                        await asyncio.sleep(0.5)
+                        await asyncio.sleep(1)  # Aguarda antes de começar
                         
-                        # Preenche o email
-                        await email_field.fill(email)
-                        await asyncio.sleep(1)
+                        # Digita caractere por caractere (simula humano)
+                        for char in email:
+                            await email_field.type(char, delay=100)  # 100ms entre cada caractere
+                            await asyncio.sleep(0.05)  # Pequeno delay adicional
+                        
+                        await asyncio.sleep(1)  # Aguarda após preencher
                         
                         # Verifica se foi preenchido
                         value = await email_field.input_value()
@@ -355,7 +366,17 @@ async def capture_looker_studio_screenshot(
                                             pass
                                         raise Exception("Campo de senha não encontrado na página de login")
                                 else:
-                                    await page.fill(password_selector_used, password)
+                                    # Preenche senha de forma "humana" (caractere por caractere)
+                                    print("🔑 Preenchendo senha...")
+                                    await password_field.click()
+                                    await asyncio.sleep(1)
+                                    
+                                    # Digita caractere por caractere (simula humano)
+                                    for char in password:
+                                        await password_field.type(char, delay=120)  # 120ms entre cada caractere
+                                        await asyncio.sleep(0.05)  # Pequeno delay adicional
+                                    
+                                    await asyncio.sleep(1)
                                     print("🔑 Senha preenchida")
                                     
                                     # Clica em próximo
