@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Perfil do Chrome (não commitar - contém dados sensíveis)
+chrome_profile/
+*.png
+*.jpg
+*.jpeg
+screenshots/
+
+# Arquivos de configuração local
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos temporários
+*.tmp
+*.temp
+looker_studio_*.png
+test_image.*
+# Ignorar tudo fora do diretório do projeto
+../*
+!../
+!../automação sea talk/
+
