@@ -116,30 +116,72 @@ async def capture_looker_studio_screenshot(
                 
                 try:
                     # Aguarda campo de email aparecer (pode ter diferentes seletores)
+                    print("🔍 Procurando campo de email...")
+                    print(f"📍 URL atual: {page.url}")
+                    
+                    # Aguarda a página de login carregar completamente
+                    await asyncio.sleep(3)
+                    
                     email_selectors = [
                         '#identifierId', 
                         'input[type="email"]', 
                         'input[name="identifier"]',
                         'input[aria-label*="email" i]',
                         'input[aria-label*="Email" i]',
-                        'input[id*="identifier"]'
+                        'input[id*="identifier"]',
+                        'input[placeholder*="email" i]',
+                        'input[placeholder*="Email" i]',
+                        'input[autocomplete="username"]'
                     ]
                     email_field = None
                     email_selector_used = None
                     
-                    print("🔍 Procurando campo de email...")
-                    # Aguarda até 20 segundos pelo campo de email
+                    # Aguarda até 30 segundos pelo campo de email
                     for selector in email_selectors:
                         try:
                             print(f"   Tentando seletor: {selector}")
-                            email_field = await page.wait_for_selector(selector, timeout=20000, state='visible')
+                            # Aguarda o elemento estar visível e habilitado
+                            email_field = await page.wait_for_selector(
+                                selector, 
+                                timeout=30000, 
+                                state='visible'
+                            )
+                            
                             if email_field:
-                                email_selector_used = selector
-                                print(f"✅ Campo de email encontrado: {selector}")
-                                break
+                                # Verifica se está realmente visível e interativo
+                                is_visible = await email_field.is_visible()
+                                is_enabled = await email_field.is_enabled()
+                                print(f"   Campo encontrado - Visível: {is_visible}, Habilitado: {is_enabled}")
+                                
+                                if is_visible and is_enabled:
+                                    email_selector_used = selector
+                                    print(f"✅ Campo de email encontrado e pronto: {selector}")
+                                    break
+                                else:
+                                    print(f"   Campo encontrado mas não está pronto")
+                                    email_field = None
                         except Exception as e:
                             print(f"   Seletor {selector} não encontrado: {str(e)[:50]}")
                             continue
+                    
+                    if not email_field:
+                        # Tenta método alternativo: procurar por qualquer input visível
+                        print("⚠️ Seletores específicos não funcionaram. Tentando método alternativo...")
+                        try:
+                            all_inputs = await page.query_selector_all('input[type="text"], input[type="email"]')
+                            print(f"   Encontrados {len(all_inputs)} inputs na página")
+                            for inp in all_inputs:
+                                is_vis = await inp.is_visible()
+                                placeholder = await inp.get_attribute('placeholder') or ''
+                                name = await inp.get_attribute('name') or ''
+                                print(f"   Input - Visível: {is_vis}, Placeholder: {placeholder}, Name: {name}")
+                                if is_vis and ('email' in placeholder.lower() or 'identifier' in name.lower()):
+                                    email_field = inp
+                                    email_selector_used = 'input[type="text"]'
+                                    print("✅ Campo encontrado via método alternativo!")
+                                    break
+                        except Exception as e:
+                            print(f"   Método alternativo falhou: {e}")
                     
                     if not email_field:
                         # Se não encontrou, pode já estar logado ou página diferente
@@ -148,10 +190,34 @@ async def capture_looker_studio_screenshot(
                         if 'lookerstudio.google.com' in final_url and 'accounts.google.com' not in final_url:
                             print("✅ Parece que já está logado ou não precisa de login")
                         else:
-                            print("⚠️ Não foi possível encontrar campo de email. Continuando...")
+                            print("❌ Não foi possível encontrar campo de email!")
+                            # Tira screenshot para debug
+                            debug_screenshot = await page.screenshot(full_page=True)
+                            print(f"   Screenshot de debug capturado (tamanho: {len(debug_screenshot)} bytes)")
+                            raise Exception("Campo de email não encontrado na página de login")
                     else:
-                        await page.fill(email_selector_used, email)
-                        print("📧 Email preenchido")
+                        # Preenche o email de forma mais robusta
+                        print(f"📧 Preenchendo email: {email[:3]}***")
+                        
+                        # Limpa o campo primeiro (caso tenha algo)
+                        await email_field.click()
+                        await asyncio.sleep(0.5)
+                        await email_field.fill('')  # Limpa
+                        await asyncio.sleep(0.5)
+                        
+                        # Preenche o email
+                        await email_field.fill(email)
+                        await asyncio.sleep(1)
+                        
+                        # Verifica se foi preenchido
+                        value = await email_field.input_value()
+                        if value == email:
+                            print("✅ Email preenchido com sucesso!")
+                        else:
+                            print(f"⚠️ Email pode não ter sido preenchido corretamente. Valor: {value[:10]}...")
+                            # Tenta novamente
+                            await email_field.fill(email)
+                            await asyncio.sleep(1)
                         
                         # Clica em próximo
                         print("🔍 Procurando botão 'Próximo'...")
