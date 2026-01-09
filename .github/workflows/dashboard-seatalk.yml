@@ -42,6 +42,10 @@ jobs:
         env:
           STREAMLIT_URL: "http://localhost:8501"
           WEBHOOK_URL: ${{ secrets.SEATALK_WEBHOOK_URL }}
+          GOOGLE_SHEET_ID: ${{ secrets.GOOGLE_SHEET_ID }}
+          GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS }}
+          SHEET_NAME_SOC: ${{ vars.SHEET_NAME_SOC || 'SOC' }}
+          SHEET_NAME_HUB: ${{ vars.SHEET_NAME_HUB || 'HUB' }}
           WAIT_TIME: "8"
           HEADLESS: "true"
         run: |

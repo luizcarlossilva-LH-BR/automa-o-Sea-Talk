@@ -15,16 +15,49 @@ git remote add origin https://github.com/SEU_USUARIO/SEU_REPO.git
 git push -u origin main
 ```
 
-### 2. Configurar Secret do Webhook
+### 2. Configurar Secrets
 
-**IMPORTANTE**: Você precisa adicionar o webhook do SeaTalk como secret:
+Acesse seu repositório no GitHub → **Settings** → **Secrets and variables** → **Actions**
 
-1. Acesse seu repositório no GitHub
-2. Vá em **Settings** → **Secrets and variables** → **Actions**
-3. Clique em **New repository secret**
-4. Adicione:
-   - **Name**: `SEATALK_WEBHOOK_URL`
-   - **Value**: `https://openapi.seatalk.io/webhook/group/ow74rcc5T5Cit5c2dRZB6Q`
+Clique em **New repository secret** e adicione:
+
+| Secret | Valor | Obrigatório |
+|--------|-------|-------------|
+| `SEATALK_WEBHOOK_URL` | `https://openapi.seatalk.io/webhook/group/SEU_ID` | ✅ Sim |
+| `GOOGLE_SHEET_ID` | ID da planilha (ver abaixo) | ✅ Sim |
+| `GOOGLE_CREDENTIALS` | JSON do Service Account (ver abaixo) | ❌ Só para planilhas privadas |
+
+### 3. Configurar o Google Sheets
+
+#### Opção A: Planilha Pública (mais simples)
+
+1. Abra sua planilha no Google Sheets
+2. Clique em **Compartilhar** → **Alterar para qualquer pessoa com o link**
+3. Copie o ID da planilha da URL:
+   ```
+   https://docs.google.com/spreadsheets/d/ESTE_E_O_ID/edit
+   ```
+4. Adicione o ID como secret `GOOGLE_SHEET_ID`
+
+#### Opção B: Planilha Privada (com Service Account)
+
+1. Acesse o [Google Cloud Console](https://console.cloud.google.com/)
+2. Crie um projeto ou use um existente
+3. Ative a **Google Sheets API**
+4. Crie uma **Service Account** e baixe o JSON
+5. Compartilhe a planilha com o email do Service Account
+6. Converta o JSON para base64 e adicione como secret `GOOGLE_CREDENTIALS`
+
+### 4. Estrutura da Planilha
+
+Sua planilha deve ter as seguintes abas:
+
+**Aba "SOC"** com colunas:
+- REGIONAL, SOC, EM ATRIBUICAO, AG. CHEGADA, AG. CARREG., CARREGANDO, CARREGADOS
+- AG. DESCARGA, NO SHOW, %NS, INFRUT., % INFRUT., CANCELADO, %CANCELADO
+- FECHADAS, %ETA ORIGEM, %CPT, %ETA DESTINO, %SPOT, SPOT PEND.
+
+**Aba "HUB"** com as mesmas colunas (substituindo SOC por HUB)
 
 ### 3. Executar o Workflow
 
