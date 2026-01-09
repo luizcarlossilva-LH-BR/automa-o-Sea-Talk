@@ -199,20 +199,48 @@ def load_from_sheets_public(sheet_id: str, sheet_name: str) -> pd.DataFrame:
         return pd.DataFrame()
 
 
-def load_from_sheets_private(sheet_id: str, sheet_name: str, credentials_json: str) -> pd.DataFrame:
+def get_google_credentials():
+    """
+    Obtem credenciais do Google de diferentes fontes:
+    1. st.secrets["gcp_service_account"] (formato Streamlit Cloud)
+    2. st.secrets["GOOGLE_CREDENTIALS"] (JSON string)
+    3. Variavel de ambiente GOOGLE_CREDENTIALS
+    """
+    import base64
+    
+    # Tenta formato Streamlit Cloud (gcp_service_account)
+    try:
+        if "gcp_service_account" in st.secrets:
+            return dict(st.secrets["gcp_service_account"])
+    except:
+        pass
+    
+    # Tenta GOOGLE_CREDENTIALS como JSON string
+    creds_str = get_config("GOOGLE_CREDENTIALS", "")
+    if creds_str:
+        try:
+            if creds_str.startswith('{'):
+                return json.loads(creds_str)
+            else:
+                # Tenta decodificar base64
+                return json.loads(base64.b64decode(creds_str).decode('utf-8'))
+        except:
+            pass
+    
+    return None
+
+
+def load_from_sheets_private(sheet_id: str, sheet_name: str) -> pd.DataFrame:
     """
     Carrega dados de uma planilha PRIVADA do Google Sheets usando Service Account
     """
     try:
         import gspread
         from google.oauth2.service_account import Credentials
-        import base64
         
-        # Decodifica credenciais se estiver em base64
-        if credentials_json.startswith('{'):
-            creds_dict = json.loads(credentials_json)
-        else:
-            creds_dict = json.loads(base64.b64decode(credentials_json).decode('utf-8'))
+        creds_dict = get_google_credentials()
+        if not creds_dict:
+            return pd.DataFrame()
         
         scopes = [
             'https://www.googleapis.com/auth/spreadsheets.readonly',
@@ -240,12 +268,17 @@ def load_sheet_data(sheet_id: str, sheet_name: str) -> pd.DataFrame:
     if not sheet_id:
         return pd.DataFrame()
     
+    # Verifica se tem credenciais configuradas
+    has_credentials = get_google_credentials() is not None
+    
+    if has_credentials:
+        # Se tem credenciais, usa direto (planilha privada)
+        df = load_from_sheets_private(sheet_id, sheet_name)
+        if not df.empty:
+            return df
+    
     # Tenta carregar como planilha publica
     df = load_from_sheets_public(sheet_id, sheet_name)
-    
-    # Se falhou e tem credenciais, tenta como privada
-    if df.empty and GOOGLE_CREDENTIALS:
-        df = load_from_sheets_private(sheet_id, sheet_name, GOOGLE_CREDENTIALS)
     
     return df
 
