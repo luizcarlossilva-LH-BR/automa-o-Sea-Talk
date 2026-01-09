@@ -1,4 +1,8 @@
 requests>=2.31.0
 playwright>=1.40.0
+streamlit>=1.28.0
+pandas>=2.0.0
+numpy>=1.24.0
+plotly>=5.17.0
 # looker-sdk>=23.20.0  # Opcional - apenas se usar looker_to_seatalk.py (versão completa)
 

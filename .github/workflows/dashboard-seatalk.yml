@@ -1,0 +1,58 @@
+name: Dashboard Performance → SeaTalk
+
+on:
+  # Executa manualmente
+  workflow_dispatch:
+  
+  # Executa em horarios programados (ajuste conforme necessario)
+  schedule:
+    # Exemplo: Segunda a Sexta as 8h (horario UTC, ajuste para seu fuso)
+    # UTC 11:00 = Brasilia 8:00
+    - cron: '0 11 * * 1-5'
+
+jobs:
+  send-dashboard:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          playwright install chromium
+          playwright install-deps
+      
+      - name: Start Streamlit in background
+        run: |
+          streamlit run dashboard_performance.py --server.headless true --server.port 8501 &
+          echo "Aguardando Streamlit iniciar..."
+          sleep 10
+          curl -s http://localhost:8501 > /dev/null && echo "✅ Streamlit rodando!" || echo "⚠️ Streamlit pode ainda estar iniciando"
+      
+      - name: Capture and send dashboard to SeaTalk
+        env:
+          STREAMLIT_URL: "http://localhost:8501"
+          WEBHOOK_URL: ${{ secrets.SEATALK_WEBHOOK_URL }}
+          WAIT_TIME: "8"
+          HEADLESS: "true"
+        run: |
+          python enviar_dashboard_seatalk.py
+      
+      - name: Upload screenshots as artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dashboard-screenshots
+          path: |
+            dashboard_tab1_soc_hub.png
+            dashboard_tab2_report.png
+          retention-days: 7
