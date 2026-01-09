@@ -26,17 +26,25 @@ st.set_page_config(
 # CONFIGURACAO DO GOOGLE SHEETS
 # ============================================
 
+def get_config(key: str, default: str = "") -> str:
+    """Busca configuracao de secrets do Streamlit ou variaveis de ambiente"""
+    # Tenta Streamlit secrets primeiro (Streamlit Cloud)
+    try:
+        return st.secrets.get(key, os.getenv(key, default))
+    except:
+        return os.getenv(key, default)
+
 # ID da planilha do Google Sheets (extraido da URL)
 # Exemplo: https://docs.google.com/spreadsheets/d/SHEET_ID/edit
-SHEET_ID = os.getenv("GOOGLE_SHEET_ID", "")
+SHEET_ID = get_config("GOOGLE_SHEET_ID", "")
 
 # Nomes das abas na planilha
-SHEET_NAME_SOC = os.getenv("SHEET_NAME_SOC", "SOC")
-SHEET_NAME_HUB = os.getenv("SHEET_NAME_HUB", "HUB")
-SHEET_NAME_REPORT = os.getenv("SHEET_NAME_REPORT", "REPORT")
+SHEET_NAME_SOC = get_config("SHEET_NAME_SOC", "SOC")
+SHEET_NAME_HUB = get_config("SHEET_NAME_HUB", "HUB")
+SHEET_NAME_REPORT = get_config("SHEET_NAME_REPORT", "REPORT")
 
 # Credenciais do Service Account (JSON em base64 ou path para arquivo)
-GOOGLE_CREDENTIALS = os.getenv("GOOGLE_CREDENTIALS", "")
+GOOGLE_CREDENTIALS = get_config("GOOGLE_CREDENTIALS", "")
 
 # ============================================
 # ESTILOS CSS
